@@ -1,0 +1,4 @@
+[submodule "github.com/awslabs/aws-sdk-go"]
+	path = github.com/awslabs/aws-sdk-go
+	url = git@github.com:awslabs/aws-sdk-go.git
+	branch = develop

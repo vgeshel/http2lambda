@@ -7,8 +7,12 @@ import (
 	"errors"
 	"log"
     "net/http"
+
+    "appengine"
+    "appengine/urlfetch"
+
 	"github.com/awslabs/aws-sdk-go/aws"
-	"github.com/awslabs/aws-sdk-go/gen/lambda"
+	"github.com/awslabs/aws-sdk-go/service/lambda"
 )
 
 func main() {
@@ -36,6 +40,8 @@ func getParam(w http.ResponseWriter, r *http.Request, p string) (string, error) 
 }
 
 func handler(w http.ResponseWriter, r *http.Request) {
+    gaeContext := appengine.NewContext(r)
+
 	log.Printf("INFO: request %s", r.URL.Query())
 
 	accessKey, err := getParam(w, r, "access-key")
@@ -60,7 +66,14 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cli := lambda.New(creds, region, nil)
+    httpClient := urlfetch.Client(gaeContext)
+	cli := lambda.New(&lambda.LambdaConfig{
+		&aws.Config{
+			Credentials: creds,
+			Region: region,
+			HTTPClient: httpClient,
+		},
+	})
 
 	fName, err := getParam(w, r, "function")
 
@@ -86,12 +99,14 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	invoke := &lambda.InvokeAsyncRequest{
+	log.Printf("DEBUG: json payload: %s", json)
+
+	invoke := &lambda.InvokeAsyncInput{
 		FunctionName: &fName,
 		InvokeArgs: json,
 	}
 
-	resp, err := cli.InvokeAsync(invoke)
+	output, err := cli.InvokeAsync(invoke)
 
 	if err != nil {
 		http.Error(w, fmt.Sprintf("invocation error on %s: %s", fName, err), http.StatusInternalServerError)
@@ -99,5 +114,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(*resp.Status)
+	log.Printf("INFO: InvokeAsync returned %d", *output.Status)
+
+	w.WriteHeader(202)
 }

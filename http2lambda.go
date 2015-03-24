@@ -78,13 +78,20 @@ func handler(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("INFO: going to invoke %s in %s", fName, region)
 
-	json, err := json.Marshal(q)
+	args := make(map[string]string)
+	for k, v := range q {
+		args[k] = v[0]
+	}
+
+	json, err := json.Marshal(args)
 
 	if err != nil {
 		http.Error(w, fmt.Sprintf("json marshalling error: %s", err), http.StatusInternalServerError)
 		log.Printf("ERROR: json marshalling error %s", err)
 		return
 	}
+
+	log.Printf("DEBUG: going to call with %s", json)
 
 	invoke := &lambda.InvokeAsyncRequest{
 		FunctionName: &fName,
